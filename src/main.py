@@ -20,14 +20,19 @@ if __name__ == "__main__":
     
     Omega, Delta_R = calculate_Omega(pi_digits)
     
-    print("✅ 验证结果:")
+    print(f"✅ 验证结果:")
     print(f"  Ω值       = {Omega:.3f}")
-    print(f"  ΔR_规模   = {Delta_R['规模']:.4f}")
-    print(f"  ΔR_水平   = {Delta_R['水平']:.4f}")
+    print(f"  ΔR_小大   = {Delta_R['小大']:.4f}")
+    print(f"  ΔR_上下   = {Delta_R['上下']:.4f}")
     print(f"  ΔR_奇偶   = {Delta_R['奇偶']:.4f}")
-    print(f"  ΔR_生克   = {Delta_R['生克']:.4f}")
-    
-    if Omega > 0.15:
-        print("\n🌟 结论: π序列存在强拓扑结构！符合'阴阳不均质'理论。")
+    print(f"  ΔR_AB     = {Delta_R['AB']:.4f}")
+
+    if Omega >= 0.15:
+        print(f"\n🌟 结论: π序列存在强拓扑结构！符合'阴阳不均质'理论。")
+    elif Omega >= 0.01:
+        print(f"\n🔹 结论: π序列存在弱结构。")
     else:
-        print("\n❓ 结论: 未检测到显著结构。")
+        print(f"\n🔸 结论: 未检测到显著结构（随机性主导）。")
+
+
+
