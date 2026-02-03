@@ -2,6 +2,10 @@
 
 > **Four-Dimensional Jiuhe Topological Measure System**  
 > 基于《易经》“阴阳不均质”思想的序列分析框架，对话“均质随机”假设。
+>## 模型版本
+- [`src/core_engine.py`](src/core_engine.py)：v2.0 完整版，面向 DNA 健康状态分析  
+- [`src/fd_jtms_v5.py`](src/fd_jtms_v5.py)：v5.0 优化版，使用实证校准阈值，适用于 π、e 等数学常数分析
+> 
 
 ## 核心思想
 本系统将《易经》先天八卦图的“结构倾斜性”转化为可计算的数学工具：
