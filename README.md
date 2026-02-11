@@ -1,4 +1,4 @@
-# 通用四轨道分析系统
+# 阴阳——通用四轨道分析系统
 
 **Universal Four-Track Analyzer**
 
