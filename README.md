@@ -129,11 +129,11 @@ python new_disease_predictor.py
 
 ### 引用格式
 ```
-@software{universal-four-track-analyzer,
-  author = {您的姓名},
+@software{YinYang_universal-four-track-analyzer,
+  author = 赵文峰,
   title = {通用四轨道分析系统},
   year = {2026},
-  url = {https://github.com/您的用户名/universal-four-track-analyzer}
+  url = https://github.com/zwf999/YinYang_universal-four-track-analyzer
 }
 ```
 
