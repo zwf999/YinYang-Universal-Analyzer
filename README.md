@@ -1,6 +1,6 @@
 # 阴阳——通用四轨道分析系统
 
-**Universal Four-Track Analyzer**
+**YinYang_Universal Four-Track Analyzer**
 
 ## 项目简介
 
@@ -130,7 +130,7 @@ python new_disease_predictor.py
 ### 引用格式
 ```
 @software{YinYang_universal-four-track-analyzer,
-  author = {赵文锋}
+  author = {赵文锋},
   title = {通用四轨道分析系统},
   year = {2026},
   url = {https://github.com/zwf999/YinYang_universal-four-track-analyzer}

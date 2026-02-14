@@ -54,50 +54,31 @@ class DNAEncoder:
         
         i = 0
         while i < len(dna_seq):
-            if i + 1 < len(dna_seq):
-                # 处理碱基对
-                b1, b2 = dna_seq[i], dna_seq[i+1]
-                n1, n2 = self.base_to_num[b1], self.base_to_num[b2]
-                
-                # 排序用于三角形编码
-                small, large = (n1, n2) if n1 <= n2 else (n2, n1)
-                code = self.triangle_encoding[(small, large)]
-                
-                # 记录方向
-                is_forward = (n1 <= n2)
-                # 使用左箭头标注反序，正序不标注
-                direction = '' if is_forward else '←'
-                
-                digits.append(code)
-                direction_flags.append(direction)
-                encoding_details.append({
-                    'bases': b1 + b2,
-                    'numbers': (n1, n2),
-                    'code': code,
-                    'direction': 'forward' if is_forward else 'reverse',
-                    'direction_mark': direction,
-                    'pair_type': self._get_pair_type(small, large)
-                })
-                
-                i += 2
-            else:
-                # 单个碱基（奇数长度序列）
-                b = dna_seq[i]
-                n = self.base_to_num[b]
-                # 直接使用0-3表示单个碱基，不使用+5
-                code = n
-                
-                digits.append(code)
-                direction_flags.append(0)  # 无方向
-                encoding_details.append({
-                    'base': b,
-                    'number': n,
-                    'code': code,
-                    'direction': 'single',
-                    'pair_type': 'single'
-                })
-                
-                i += 1
+            # 处理碱基对（序列已确保为偶数长度）
+            b1, b2 = dna_seq[i], dna_seq[i+1]
+            n1, n2 = self.base_to_num[b1], self.base_to_num[b2]
+            
+            # 排序用于三角形编码
+            small, large = (n1, n2) if n1 <= n2 else (n2, n1)
+            code = self.triangle_encoding[(small, large)]
+            
+            # 记录方向
+            is_forward = (n1 <= n2)
+            # 使用左箭头标注反序，正序不标注
+            direction = '' if is_forward else '←'
+            
+            digits.append(code)
+            direction_flags.append(direction)
+            encoding_details.append({
+                'bases': b1 + b2,
+                'numbers': (n1, n2),
+                'code': code,
+                'direction': 'forward' if is_forward else 'reverse',
+                'direction_mark': direction,
+                'pair_type': self._get_pair_type(small, large)
+            })
+            
+            i += 2
         
         return {
             'dna_sequence': dna_seq,
@@ -136,29 +117,22 @@ class DNAEncoder:
         
         digits = encoded_data['encoded_digits']
         direction_flags = encoded_data.get('direction_flags', [])
-        details = encoded_data.get('encoding_details', [])
         
         dna_bases = []
         
         for idx, code in enumerate(digits):
-            if idx < len(details) and 'pair_type' in details[idx]:
-                if details[idx]['pair_type'] == 'single':
-                    # 单个碱基
-                    n = code
-                    dna_bases.append(self.num_to_base[n])
+            # 所有编码都是碱基对（已确保偶数长度序列）
+            if idx < len(direction_flags):
+                direction_mark = direction_flags[idx]
+                n1, n2 = self.code_to_pair[code]
+                
+                if direction_mark == '':  # 正序（无标记）
+                    dna_bases.extend([self.num_to_base[n1], self.num_to_base[n2]])
+                elif direction_mark == '←':  # 逆序（左箭头标记）
+                    dna_bases.extend([self.num_to_base[n2], self.num_to_base[n1]])
                 else:
-                    # 碱基对
-                    if idx < len(direction_flags):
-                        direction_mark = direction_flags[idx]
-                        n1, n2 = self.code_to_pair[code]
-                        
-                        if direction_mark == '':  # 正序（无标记）
-                            dna_bases.extend([self.num_to_base[n1], self.num_to_base[n2]])
-                        elif direction_mark == '←':  # 逆序（左箭头标记）
-                            dna_bases.extend([self.num_to_base[n2], self.num_to_base[n1]])
-                        else:
-                            # 无方向信息，默认正序
-                            dna_bases.extend([self.num_to_base[n1], self.num_to_base[n2]])
+                    # 无方向信息，默认正序
+                    dna_bases.extend([self.num_to_base[n1], self.num_to_base[n2]])
         
         return ''.join(dna_bases)
     
@@ -175,6 +149,12 @@ class DNAEncoder:
         for char in seq:
             if char not in valid_bases:
                 raise ValueError(f"DNA序列包含无效字符: {char}")
+        
+        # 确保序列为偶数长度（全是碱基对）
+        if len(seq) % 2 != 0:
+            # 截断最后一个碱基
+            seq = seq[:-1]
+            print("警告：序列长度为奇数，已截断最后一个碱基")
         
         return seq
     

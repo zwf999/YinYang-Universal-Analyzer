@@ -39,39 +39,24 @@ class UniversalEncoder:
         
         i = 0
         while i < len(dna_seq):
-            if i + 1 < len(dna_seq):
-                # 两个碱基
-                b1, b2 = dna_seq[i], dna_seq[i+1]
-                n1, n2 = self.base_to_num[b1], self.base_to_num[b2]
-                small, large = (n1, n2) if n1 <= n2 else (n2, n1)
-                code = self.triangle_table[(small, large)]
-                
-                # 方向标记：正序无标记，反序左箭头
-                is_forward = (n1 <= n2)
-                direction_mark = '' if is_forward else '←'
-                
-                digits.append(code)
-                details.append({
-                    'bases': b1 + b2,
-                    'code': code,
-                    'direction': 'forward' if is_forward else 'reverse',
-                    'direction_mark': direction_mark
-                })
-                i += 2
-            else:
-                # 单个碱基
-                b = dna_seq[i]
-                n = self.base_to_num[b]
-                # 直接使用0-3表示单个碱基，不使用+5
-                code = n
-                
-                digits.append(code)
-                details.append({
-                    'base': b,
-                    'code': code,
-                    'direction': 'single'
-                })
-                i += 1
+            # 处理碱基对（序列已确保为偶数长度）
+            b1, b2 = dna_seq[i], dna_seq[i+1]
+            n1, n2 = self.base_to_num[b1], self.base_to_num[b2]
+            small, large = (n1, n2) if n1 <= n2 else (n2, n1)
+            code = self.triangle_table[(small, large)]
+            
+            # 方向标记：正序无标记，反序左箭头
+            is_forward = (n1 <= n2)
+            direction_mark = '' if is_forward else '←'
+            
+            digits.append(code)
+            details.append({
+                'bases': b1 + b2,
+                'code': code,
+                'direction': 'forward' if is_forward else 'reverse',
+                'direction_mark': direction_mark
+            })
+            i += 2
         
         # 统计
         gc_count = dna_seq.count('G') + dna_seq.count('C')
@@ -134,9 +119,15 @@ class UniversalEncoder:
             # 如果有非DNA字符，尝试只提取DNA部分
             dna_only = ''.join([c for c in seq if c in dna_chars])
             if len(dna_only) > 0:
-                return dna_only
+                seq = dna_only
             else:
                 raise ValueError("没有找到有效的DNA字符")
+        
+        # 确保序列为偶数长度（全是碱基对）
+        if len(seq) % 2 != 0:
+            # 截断最后一个碱基
+            seq = seq[:-1]
+            print("警告：序列长度为奇数，已截断最后一个碱基")
         
         return seq
 
