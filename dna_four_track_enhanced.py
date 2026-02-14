@@ -1507,6 +1507,16 @@ def main():
                 print("❌ 请输入有效数字")
         
         elif choice == '8':
+            print("\n执行鲁棒性测试...")
+            results = system.perform_robustness_test()
+            
+            # 保存选项
+            save = input("是否保存鲁棒性测试结果到文件? (y/n): ").strip().lower()
+            if save == 'y':
+                filename = "robustness_test_results.json"
+                system.save_results(results, filename)
+        
+        elif choice == '9':
             print("\n谢谢使用，再见！")
             break
         
