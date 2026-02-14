@@ -122,27 +122,20 @@ class DNAEncoder:
         }
     
     def decode(self, encoded_data: Dict[str, Any]) -> str:
-        """从编码数据解码回DNA"""
+        """从编码数据解码回DNA（只处理碱基对）"""
         digits = encoded_data['digits']
         details = encoded_data['details']
         
         bases = []
-        for idx, detail in enumerate(details):
-            if 'direction' in detail:
-                if detail['direction'] == 'single':
-                    # 单个碱基
-                    code = digits[idx]
-                    n = code
-                    bases.append(self.num_to_base[n])
-                else:
-                    # 碱基对
-                    code = digits[idx]
-                    n1, n2 = self.code_to_pair[code]
-                    
-                    if detail['direction'] == 'forward':
-                        bases.extend([self.num_to_base[n1], self.num_to_base[n2]])
-                    else:  # reverse
-                        bases.extend([self.num_to_base[n2], self.num_to_base[n1]])
+        for detail in details:
+            # 现在所有都是碱基对
+            code = detail['code']
+            n1, n2 = self.code_to_pair[code]
+            
+            if detail['direction'] == 'forward':
+                bases.extend([self.num_to_base[n1], self.num_to_base[n2]])
+            else:  # reverse
+                bases.extend([self.num_to_base[n2], self.num_to_base[n1]])
         
         return ''.join(bases)
 
