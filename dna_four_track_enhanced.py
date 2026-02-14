@@ -870,6 +870,142 @@ class DNAFourTrackSystem:
         except Exception as e:
             raise Exception(f"读取目录失败: {e}")
     
+    def perform_robustness_test(self) -> Dict[str, Any]:
+        """执行鲁棒性测试"""
+        import time
+        
+        test_cases = {
+            "空序列": "",
+            "极短序列(2bp)": "AC",
+            "极短序列(4bp)": "ACGT",
+            "奇数长度序列": "ACGTACG",  # 7bp，应被截断为6bp
+            "包含无效字符": "ACGTXYZACGT",  # 包含无效字符
+            "长序列(50bp)": "ACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGT",
+            "长序列(100bp)": "ACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGT",
+            "重复序列": "AAAAAAA",  # 7bp，应被截断为6bp
+            "高GC含量": "GGGGCCCCGGGGCCCC",
+            "高AT含量": "AAAAAAAAATTTTTTTTT"
+        }
+        
+        results = {
+            "test_cases": {},
+            "summary": {
+                "total_tests": len(test_cases),
+                "passed_tests": 0,
+                "failed_tests": 0,
+                "avg_execution_time": 0
+            }
+        }
+        
+        total_time = 0
+        passed = 0
+        failed = 0
+        
+        print("\n" + "="*60)
+        print("🔧 执行鲁棒性测试")
+        print("="*60)
+        
+        for test_name, test_seq in test_cases.items():
+            print(f"\n测试: {test_name}")
+            print(f"序列: {test_seq}")
+            print(f"长度: {len(test_seq)} bp")
+            
+            start_time = time.time()
+            
+            test_result = {
+                "input": test_seq,
+                "input_length": len(test_seq),
+                "success": False,
+                "error": None,
+                "execution_time": 0,
+                "encoding": None,
+                "analysis": None
+            }
+            
+            try:
+                # 测试编码
+                encoded = self.encoder.encode(test_seq)
+                test_result["encoding"] = {
+                    "digits_length": len(encoded['digits']),
+                    "processed_length": len(encoded['original'])
+                }
+                
+                # 测试解码（如果有编码结果）
+                if encoded['digits']:
+                    decoded = self.encoder.decode(encoded)
+                    test_result["decoded"] = decoded
+                
+                # 测试分析
+                if encoded['digits']:
+                    analysis = self.analyzer.analyze(encoded['digits'])
+                    test_result["analysis"] = {
+                        "has_error": 'error' in analysis
+                    }
+                
+                test_result["success"] = True
+                passed += 1
+                print("  ✅ 测试通过")
+                
+            except Exception as e:
+                test_result["error"] = str(e)
+                failed += 1
+                print(f"  ❌ 测试失败: {e}")
+            
+            end_time = time.time()
+            execution_time = end_time - start_time
+            test_result["execution_time"] = execution_time
+            total_time += execution_time
+            
+            results["test_cases"][test_name] = test_result
+        
+        # 生成摘要
+        results["summary"]["passed_tests"] = passed
+        results["summary"]["failed_tests"] = failed
+        results["summary"]["avg_execution_time"] = total_time / len(test_cases) if test_cases else 0
+        
+        # 打印摘要
+        print("\n" + "="*60)
+        print("📊 鲁棒性测试摘要")
+        print("="*60)
+        print(f"总测试数: {results['summary']['total_tests']}")
+        print(f"通过测试: {results['summary']['passed_tests']}")
+        print(f"失败测试: {results['summary']['failed_tests']}")
+        print(f"平均执行时间: {results['summary']['avg_execution_time']:.4f} 秒")
+        print(f"通过率: {passed / len(test_cases) * 100:.1f}%")
+        print("="*60)
+        
+        return results
+    
+    def test_encoding_consistency(self, test_seq: str) -> Dict[str, Any]:
+        """测试编码/解码的一致性"""
+        result = {
+            "input": test_seq,
+            "success": False,
+            "error": None,
+            "encoded_length": 0,
+            "decoded": "",
+            "match": False
+        }
+        
+        try:
+            # 编码
+            encoded = self.encoder.encode(test_seq)
+            result["encoded_length"] = len(encoded['digits'])
+            
+            # 解码
+            decoded = self.encoder.decode(encoded)
+            result["decoded"] = decoded
+            
+            # 验证一致性（只比较处理后的序列）
+            processed_input = encoded['original']
+            result["match"] = processed_input == decoded
+            result["success"] = True
+            
+        except Exception as e:
+            result["error"] = str(e)
+        
+        return result
+    
     def generate_random_dna(self, length: int) -> str:
         """生成指定长度的随机DNA序列"""
         import random
@@ -1082,9 +1218,10 @@ def main():
         print("  5. 批量分析目录中的DNA文件")
         print("  6. 分析序列并执行零假设验证")
         print("  7. 分析示例序列并执行零假设验证")
-        print("  8. 退出")
+        print("  8. 执行鲁棒性测试")
+        print("  9. 退出")
         
-        choice = input("请输入选择 (1-8): ").strip()
+        choice = input("请输入选择 (1-9): ").strip()
         
         if choice == '1':
             print("\n选择要分析的示例序列:")

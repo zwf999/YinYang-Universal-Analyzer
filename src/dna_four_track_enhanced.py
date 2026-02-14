@@ -869,6 +869,316 @@ class DNAFourTrackSystem:
             return sequences
         except Exception as e:
             raise Exception(f"读取目录失败: {e}")
+    
+    def perform_robustness_test(self) -> Dict[str, Any]:
+        """执行鲁棒性测试"""
+        import time
+        
+        test_cases = {
+            "空序列": "",
+            "极短序列(2bp)": "AC",
+            "极短序列(4bp)": "ACGT",
+            "奇数长度序列": "ACGTACG",  # 7bp，应被截断为6bp
+            "包含无效字符": "ACGTXYZACGT",  # 包含无效字符
+            "长序列(50bp)": "ACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGT",
+            "长序列(100bp)": "ACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGT",
+            "重复序列": "AAAAAAA",  # 7bp，应被截断为6bp
+            "高GC含量": "GGGGCCCCGGGGCCCC",
+            "高AT含量": "AAAAAAAAATTTTTTTTT"
+        }
+        
+        results = {
+            "test_cases": {},
+            "summary": {
+                "total_tests": len(test_cases),
+                "passed_tests": 0,
+                "failed_tests": 0,
+                "avg_execution_time": 0
+            }
+        }
+        
+        total_time = 0
+        passed = 0
+        failed = 0
+        
+        print("\n" + "="*60)
+        print("🔧 执行鲁棒性测试")
+        print("="*60)
+        
+        for test_name, test_seq in test_cases.items():
+            print(f"\n测试: {test_name}")
+            print(f"序列: {test_seq}")
+            print(f"长度: {len(test_seq)} bp")
+            
+            start_time = time.time()
+            
+            test_result = {
+                "input": test_seq,
+                "input_length": len(test_seq),
+                "success": False,
+                "error": None,
+                "execution_time": 0,
+                "encoding": None,
+                "analysis": None
+            }
+            
+            try:
+                # 测试编码
+                encoded = self.encoder.encode(test_seq)
+                test_result["encoding"] = {
+                    "digits_length": len(encoded['digits']),
+                    "processed_length": len(encoded['original'])
+                }
+                
+                # 测试解码（如果有编码结果）
+                if encoded['digits']:
+                    decoded = self.encoder.decode(encoded)
+                    test_result["decoded"] = decoded
+                
+                # 测试分析
+                if encoded['digits']:
+                    analysis = self.analyzer.analyze(encoded['digits'])
+                    test_result["analysis"] = {
+                        "has_error": 'error' in analysis
+                    }
+                
+                test_result["success"] = True
+                passed += 1
+                print("  ✅ 测试通过")
+                
+            except Exception as e:
+                test_result["error"] = str(e)
+                failed += 1
+                print(f"  ❌ 测试失败: {e}")
+            
+            end_time = time.time()
+            execution_time = end_time - start_time
+            test_result["execution_time"] = execution_time
+            total_time += execution_time
+            
+            results["test_cases"][test_name] = test_result
+        
+        # 生成摘要
+        results["summary"]["passed_tests"] = passed
+        results["summary"]["failed_tests"] = failed
+        results["summary"]["avg_execution_time"] = total_time / len(test_cases) if test_cases else 0
+        
+        # 打印摘要
+        print("\n" + "="*60)
+        print("📊 鲁棒性测试摘要")
+        print("="*60)
+        print(f"总测试数: {results['summary']['total_tests']}")
+        print(f"通过测试: {results['summary']['passed_tests']}")
+        print(f"失败测试: {results['summary']['failed_tests']}")
+        print(f"平均执行时间: {results['summary']['avg_execution_time']:.4f} 秒")
+        print(f"通过率: {passed / len(test_cases) * 100:.1f}%")
+        print("="*60)
+        
+        return results
+    
+    def test_encoding_consistency(self, test_seq: str) -> Dict[str, Any]:
+        """测试编码/解码的一致性"""
+        result = {
+            "input": test_seq,
+            "success": False,
+            "error": None,
+            "encoded_length": 0,
+            "decoded": "",
+            "match": False
+        }
+        
+        try:
+            # 编码
+            encoded = self.encoder.encode(test_seq)
+            result["encoded_length"] = len(encoded['digits'])
+            
+            # 解码
+            decoded = self.encoder.decode(encoded)
+            result["decoded"] = decoded
+            
+            # 验证一致性（只比较处理后的序列）
+            processed_input = encoded['original']
+            result["match"] = processed_input == decoded
+            result["success"] = True
+            
+        except Exception as e:
+            result["error"] = str(e)
+        
+        return result
+    
+    def generate_random_dna(self, length: int) -> str:
+        """生成指定长度的随机DNA序列"""
+        import random
+        bases = ['A', 'C', 'G', 'T']
+        return ''.join(random.choice(bases) for _ in range(length))
+    
+    def perform_null_hypothesis_test(self, target_digits: List[int], n_random: int = 1000) -> Dict[str, Any]:
+        """执行零假设验证
+        
+        Args:
+            target_digits: 目标数字序列
+            n_random: 随机序列数量，默认1000
+            
+        Returns:
+            包含零假设验证结果的字典
+        """
+        import statistics
+        import math
+        
+        # 分析目标序列
+        target_analysis = self.analyzer.analyze(target_digits)
+        
+        # 生成随机序列并分析
+        random_results = []
+        for i in range(n_random):
+            # 生成与目标序列长度相同的随机DNA
+            dna_length = len(target_digits) * 2  # 每个数字对应2个碱基
+            random_dna = self.generate_random_dna(dna_length)
+            
+            # 编码并分析
+            encoded = self.encoder.encode(random_dna)
+            random_analysis = self.analyzer.analyze(encoded['digits'])
+            random_results.append(random_analysis)
+        
+        # 计算统计信息
+        stats = {}
+        for track in ['track1', 'track2', 'track3', 'track4']:
+            if track in target_analysis:
+                # 提取目标轨道的关键指标
+                target_symmetry = target_analysis[track]['symmetry']['overall']
+                
+                if track == 'track1':
+                    target_pair_ratio = target_analysis[track]['forward']['symbol_pairs']['ratio']
+                else:
+                    target_pair_ratio = target_analysis[track]['forward']['global_digit_pairs']['ratio']
+                
+                # 提取随机序列的指标
+                random_symmetries = []
+                random_pair_ratios = []
+                
+                for result in random_results:
+                    if track in result:
+                        random_symmetries.append(result[track]['symmetry']['overall'])
+                        
+                        if track == 'track1':
+                            random_pair_ratios.append(result[track]['forward']['symbol_pairs']['ratio'])
+                        else:
+                            random_pair_ratios.append(result[track]['forward']['global_digit_pairs']['ratio'])
+                
+                # 计算统计量
+                mean_symmetry = statistics.mean(random_symmetries)
+                std_symmetry = statistics.stdev(random_symmetries)
+                
+                mean_pair_ratio = statistics.mean(random_pair_ratios)
+                std_pair_ratio = statistics.stdev(random_pair_ratios)
+                
+                # 计算z值和p值（双侧检验）
+                z_symmetry = (target_symmetry - mean_symmetry) / std_symmetry if std_symmetry > 0 else 0
+                z_pair_ratio = (target_pair_ratio - mean_pair_ratio) / std_pair_ratio if std_pair_ratio > 0 else 0
+                
+                # 简化的p值计算（基于正态分布）
+                def calculate_p_value(z):
+                    # 简化的双侧p值计算
+                    if abs(z) > 3.29:
+                        return '< 0.001'
+                    elif abs(z) > 2.58:
+                        return '< 0.01'
+                    elif abs(z) > 1.96:
+                        return '< 0.05'
+                    else:
+                        return '> 0.05'
+                
+                p_symmetry = calculate_p_value(z_symmetry)
+                p_pair_ratio = calculate_p_value(z_pair_ratio)
+                
+                # 数学常数关联分析
+                math_constants = self._analyze_math_constants(target_digits)
+                
+                stats[track] = {
+                    'target': {
+                        'symmetry': target_symmetry,
+                        'pair_ratio': target_pair_ratio
+                    },
+                    'random': {
+                        'mean_symmetry': mean_symmetry,
+                        'std_symmetry': std_symmetry,
+                        'mean_pair_ratio': mean_pair_ratio,
+                        'std_pair_ratio': std_pair_ratio
+                    },
+                    'significance': {
+                        'z_symmetry': z_symmetry,
+                        'p_symmetry': p_symmetry,
+                        'z_pair_ratio': z_pair_ratio,
+                        'p_pair_ratio': p_pair_ratio
+                    },
+                    'math_constants': math_constants
+                }
+        
+        return {
+            'target_analysis': target_analysis,
+            'random_stats': stats,
+            'n_random': n_random
+        }
+    
+    def _analyze_math_constants(self, digits: List[int]) -> Dict[str, Any]:
+        """分析数字序列与数学常数的关联"""
+        import math
+        
+        # 提取数学常数的数字
+        pi_digits = [int(d) for d in str(math.pi).replace('.', '')[:20]]
+        phi_digits = [int(d) for d in str((1 + math.sqrt(5)) / 2).replace('.', '')[:20]]
+        e_digits = [int(d) for d in str(math.e).replace('.', '')[:20]]
+        
+        # 计算相似度（简单的匹配率）
+        def calculate_similarity(seq1, seq2):
+            min_len = min(len(seq1), len(seq2))
+            matches = sum(1 for a, b in zip(seq1[:min_len], seq2[:min_len]) if a == b)
+            return matches / min_len
+        
+        # 计算数字分布相似度
+        def calculate_distribution_similarity(seq1, seq2):
+            from collections import Counter
+            
+            cnt1 = Counter(seq1)
+            cnt2 = Counter(seq2)
+            
+            total = set(seq1 + seq2)
+            distance = 0
+            
+            for d in total:
+                p1 = cnt1.get(d, 0) / len(seq1) if seq1 else 0
+                p2 = cnt2.get(d, 0) / len(seq2) if seq2 else 0
+                distance += abs(p1 - p2)
+            
+            return 1 - distance / 2  # 归一化到[0,1]
+        
+        return {
+            'pi': {
+                'similarity': calculate_similarity(digits, pi_digits),
+                'distribution_similarity': calculate_distribution_similarity(digits, pi_digits)
+            },
+            'phi': {
+                'similarity': calculate_similarity(digits, phi_digits),
+                'distribution_similarity': calculate_distribution_similarity(digits, phi_digits)
+            },
+            'e': {
+                'similarity': calculate_similarity(digits, e_digits),
+                'distribution_similarity': calculate_distribution_similarity(digits, e_digits)
+            }
+        }
+    
+    def analyze_with_null_hypothesis(self, dna_sequence: str, name: str = "") -> Dict[str, Any]:
+        """分析DNA序列并执行零假设验证"""
+        # 标准分析
+        result = self.analyze(dna_sequence, name)
+        
+        # 执行零假设验证
+        if 'encoding' in result:
+            digits = result['encoding']['digits']
+            null_hypothesis_result = self.perform_null_hypothesis_test(digits)
+            result['null_hypothesis'] = null_hypothesis_result
+        
+        return result
 
 # ============================================================================
 # 第四部分：主程序
@@ -886,12 +1196,12 @@ def main():
     # 创建分析系统
     system = DNAFourTrackSystem()
     
-    # 示例DNA序列
+    # 示例DNA序列（更长的序列，以便更好地测试零假设验证）
     example_sequences = {
-        "启动子序列": "ATCGATCGATCGATCGATCG",
-        "高GC区域": "GGGCCCGGGCCCGGGCCCGG",
-        "重复序列": "AGCTAGCTAGCTAGCTAGCT",
-        "回文序列": "GAATTCCTTAAGGAATTCCTTAAG"
+        "启动子序列": "ATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCG",
+        "高GC区域": "GGGCCCGGGCCCGGGCCCGGGGGCCCGGGCCCGGGCCCGGGCC",
+        "重复序列": "AGCTAGCTAGCTAGCTAGCTAGCTAGCTAGCTAGCTAGCTAGCT",
+        "回文序列": "GAATTCCTTAAGGAATTCCTTAAGGAATTCCTTAAGGAATTCCTTAAG"
     }
     
     print("📋 示例序列:")
@@ -906,9 +1216,12 @@ def main():
         print("  3. 批量分析所有示例")
         print("  4. 从文件加载DNA序列")
         print("  5. 批量分析目录中的DNA文件")
-        print("  6. 退出")
+        print("  6. 分析序列并执行零假设验证")
+        print("  7. 分析示例序列并执行零假设验证")
+        print("  8. 执行鲁棒性测试")
+        print("  9. 退出")
         
-        choice = input("请输入选择 (1-6): ").strip()
+        choice = input("请输入选择 (1-9): ").strip()
         
         if choice == '1':
             print("\n选择要分析的示例序列:")
@@ -1072,6 +1385,61 @@ def main():
                 print(f"❌ 目录不存在: {directory}")
         
         elif choice == '6':
+            print("\n请输入DNA序列 (只包含A,C,G,T):")
+            dna_input = input("DNA序列: ").strip()
+            name = input("序列名称 (可选): ").strip()
+            
+            if not name:
+                name = "自定义序列"
+            
+            if not dna_input:
+                print("❌ 序列不能为空")
+                continue
+            
+            result = system.analyze_with_null_hypothesis(dna_input, name)
+            system.print_report(result)
+            
+            save = input("是否保存结果到文件? (y/n): ").strip().lower()
+            if save == 'y':
+                filename = f"result_{name}_with_null_hypothesis.json"
+                system.save_results({name: result}, filename)
+        
+        elif choice == '7':
+            print("\n选择要分析的示例序列:")
+            for i, name in enumerate(example_sequences.keys(), 1):
+                print(f"  {i}. {name}")
+            
+            try:
+                seq_choice = int(input("请输入编号 (1-4): ").strip()) - 1
+                seq_names = list(example_sequences.keys())
+                if 0 <= seq_choice < len(seq_names):
+                    name = seq_names[seq_choice]
+                    seq = example_sequences[name]
+                    
+                    result = system.analyze_with_null_hypothesis(seq, name)
+                    system.print_report(result)
+                    
+                    # 保存选项
+                    save = input("是否保存结果到文件? (y/n): ").strip().lower()
+                    if save == 'y':
+                        filename = f"result_{name}_with_null_hypothesis.json"
+                        system.save_results({name: result}, filename)
+                else:
+                    print("❌ 无效的选择")
+            except ValueError:
+                print("❌ 请输入有效数字")
+        
+        elif choice == '8':
+            print("\n执行鲁棒性测试...")
+            results = system.perform_robustness_test()
+            
+            # 保存选项
+            save = input("是否保存鲁棒性测试结果到文件? (y/n): ").strip().lower()
+            if save == 'y':
+                filename = "robustness_test_results.json"
+                system.save_results(results, filename)
+        
+        elif choice == '9':
             print("\n谢谢使用，再见！")
             break
         
